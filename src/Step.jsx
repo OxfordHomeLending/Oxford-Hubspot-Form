@@ -90,7 +90,7 @@ function AddressFields({ answers, step, errors, onChange }) {
 function SelectField({ step, answers, errors, onChange }) {
   return (
     <div className={'ohl-fld' + (errors[step.key] ? ' bad' : '')}>
-      <select className="ohl-sel" id={'f_' + step.key} value={answers[step.key] || ''} onChange={(e) => onChange(e.target.value)} autoFocus>
+      <select className="ohl-sel" id={'f_' + step.key} value={answers[step.key] || ''} onChange={(e) => onChange(e.target.value)}>
         <option value="" disabled>{step.placeholder || 'Select'}</option>
         {step.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
