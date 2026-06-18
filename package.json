@@ -1,0 +1,22 @@
+{
+  "name": "oxford-lead-form",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Oxford Home Lending dynamic multi-step mortgage lead form. Posts a clean JSON payload to an n8n webhook.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node test/run-tests.mjs",
+    "test:samples": "WRITE_SAMPLES=1 node test/run-tests.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.0"
+  }
+}

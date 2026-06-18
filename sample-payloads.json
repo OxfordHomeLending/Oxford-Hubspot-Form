@@ -1,0 +1,234 @@
+{
+  "purchase": {
+    "leadUuid": "e95103b4-eadd-4b3b-8c49-8c3ee4208f38",
+    "submittedAt": "2026-06-18T16:50:24.167Z",
+    "source": "oxford-web-form",
+    "formVersion": "2.0.0",
+    "contact": {
+      "firstName": "Jordan",
+      "lastName": "Rivera",
+      "email": "jordan.rivera@example.com",
+      "phone": "(614) 555-0142",
+      "preferredContact": "Text message"
+    },
+    "loan": {
+      "intent": "Buying a home",
+      "veteran": "No",
+      "purchaseState": "TX",
+      "willOccupy": "Yes",
+      "purchasePrice": "$350,000 to $500,000",
+      "purchaseProcess": "Actively shopping",
+      "workingWithRealtor": "Yes",
+      "currentAddress": null,
+      "primaryResidence": "",
+      "estimatedLoanAmount": "",
+      "employmentStatus": "Employed (W-2)",
+      "householdIncome": "$100,000 to $150,000",
+      "creditCategory": "Good (680 to 739)"
+    },
+    "consents": {
+      "creditAuthorization": {
+        "granted": true,
+        "timestamp": "2026-06-18T16:50:24.167Z",
+        "text": "By checking this box, I provide express written authorization for Oxford Home Lending to obtain and use consumer report information, including information related to my mortgage shopping behavior, for the purpose of providing prescreened offers of credit. I understand I may revoke this authorization at any time by contacting: info@oxfordhomelending.com or 655-689-3571."
+      },
+      "tcpa": {
+        "granted": true,
+        "timestamp": "2026-06-18T16:50:24.167Z",
+        "text": "I authorize Oxford Home Lending to contact me at the phone number provided using automated technology, including autodialed calls, prerecorded or artificial voice messages, and text messages regarding mortgage loan products and prescreened offers. By checking this box, I also consent to receive calls and messages from Oxford Home Lending, its affiliates, and its service providers at the telephone number I provide, including through automated calling technologies, prerecorded or artificial voice messages, and AI-assisted voice communications. My consent is voluntary and not a condition of loan approval. I may revoke consent at any time by contacting: info@oxfordhomelending.com or 655-689-3571."
+      }
+    },
+    "meta": {
+      "formStartedAt": "2026-06-18T16:49:14.167Z",
+      "elapsedMs": 70000,
+      "honeypotTriggered": false,
+      "suspectedBot": false
+    },
+    "tracking": {
+      "gclid": "TESTgclid123",
+      "gbraid": "",
+      "wbraid": "",
+      "fbclid": "FBxyz789",
+      "msclkid": "",
+      "ttclid": "",
+      "liFatId": "",
+      "epik": "",
+      "irclickid": "",
+      "utmSource": "google",
+      "utmMedium": "cpc",
+      "utmCampaign": "spring_refi",
+      "utmTerm": "mortgage rates",
+      "utmContent": "hero_ad",
+      "utmId": "",
+      "gaClientId": "1234567890.1681500000",
+      "hubspotutk": "a1b2c3d4e5f6a7b8c9d0e1f2",
+      "leadUuid": "e95103b4-eadd-4b3b-8c49-8c3ee4208f38",
+      "referrer": "https://www.google.com/",
+      "landingPage": "https://apply.oxfordhomelending.com/get-started?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi&utm_content=hero_ad&utm_term=mortgage+rates&fbclid=FBxyz789",
+      "submitPage": "https://apply.oxfordhomelending.com/get-started?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi&utm_content=hero_ad&utm_term=mortgage+rates&fbclid=FBxyz789",
+      "userAgent": "Mozilla/5.0 (Macintosh; TestHarness) Node",
+      "language": "en-US",
+      "timezone": "UTC",
+      "screen": "1920x1080",
+      "viewport": "1440x900"
+    }
+  },
+  "refinance": {
+    "leadUuid": "e95103b4-eadd-4b3b-8c49-8c3ee4208f38",
+    "submittedAt": "2026-06-18T16:50:24.189Z",
+    "source": "oxford-web-form",
+    "formVersion": "2.0.0",
+    "contact": {
+      "firstName": "Sam",
+      "lastName": "Okafor",
+      "email": "sam.okafor@example.com",
+      "phone": "(555) 123-4567",
+      "preferredContact": "Phone call"
+    },
+    "loan": {
+      "intent": "Refinancing my home",
+      "veteran": "Yes",
+      "purchaseState": "",
+      "willOccupy": "",
+      "purchasePrice": "",
+      "purchaseProcess": "",
+      "workingWithRealtor": "",
+      "currentAddress": {
+        "street": "88 Maple Ave",
+        "city": "Dublin",
+        "state": "OH",
+        "zip": "43017"
+      },
+      "primaryResidence": "Yes",
+      "estimatedLoanAmount": "$300,000 to $500,000",
+      "employmentStatus": "Self-employed",
+      "householdIncome": "$150,000 to $250,000",
+      "creditCategory": "Excellent (740+)"
+    },
+    "consents": {
+      "creditAuthorization": {
+        "granted": true,
+        "timestamp": "2026-06-18T16:50:24.189Z",
+        "text": "By checking this box, I provide express written authorization for Oxford Home Lending to obtain and use consumer report information, including information related to my mortgage shopping behavior, for the purpose of providing prescreened offers of credit. I understand I may revoke this authorization at any time by contacting: info@oxfordhomelending.com or 655-689-3571."
+      },
+      "tcpa": {
+        "granted": true,
+        "timestamp": "2026-06-18T16:50:24.189Z",
+        "text": "I authorize Oxford Home Lending to contact me at the phone number provided using automated technology, including autodialed calls, prerecorded or artificial voice messages, and text messages regarding mortgage loan products and prescreened offers. By checking this box, I also consent to receive calls and messages from Oxford Home Lending, its affiliates, and its service providers at the telephone number I provide, including through automated calling technologies, prerecorded or artificial voice messages, and AI-assisted voice communications. My consent is voluntary and not a condition of loan approval. I may revoke consent at any time by contacting: info@oxfordhomelending.com or 655-689-3571."
+      }
+    },
+    "meta": {
+      "formStartedAt": "2026-06-18T16:49:14.189Z",
+      "elapsedMs": 70000,
+      "honeypotTriggered": false,
+      "suspectedBot": false
+    },
+    "tracking": {
+      "gclid": "TESTgclid123",
+      "gbraid": "",
+      "wbraid": "",
+      "fbclid": "FBxyz789",
+      "msclkid": "",
+      "ttclid": "",
+      "liFatId": "",
+      "epik": "",
+      "irclickid": "",
+      "utmSource": "google",
+      "utmMedium": "cpc",
+      "utmCampaign": "spring_refi",
+      "utmTerm": "mortgage rates",
+      "utmContent": "hero_ad",
+      "utmId": "",
+      "gaClientId": "1234567890.1681500000",
+      "hubspotutk": "a1b2c3d4e5f6a7b8c9d0e1f2",
+      "leadUuid": "e95103b4-eadd-4b3b-8c49-8c3ee4208f38",
+      "referrer": "https://www.google.com/",
+      "landingPage": "https://apply.oxfordhomelending.com/get-started?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi&utm_content=hero_ad&utm_term=mortgage+rates&fbclid=FBxyz789",
+      "submitPage": "https://apply.oxfordhomelending.com/get-started?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi&utm_content=hero_ad&utm_term=mortgage+rates&fbclid=FBxyz789",
+      "userAgent": "Mozilla/5.0 (Macintosh; TestHarness) Node",
+      "language": "en-US",
+      "timezone": "UTC",
+      "screen": "1920x1080",
+      "viewport": "1440x900"
+    }
+  },
+  "equity": {
+    "leadUuid": "e95103b4-eadd-4b3b-8c49-8c3ee4208f38",
+    "submittedAt": "2026-06-18T16:50:24.190Z",
+    "source": "oxford-web-form",
+    "formVersion": "2.0.0",
+    "contact": {
+      "firstName": "Lee",
+      "lastName": "Nguyen",
+      "email": "lee.nguyen@example.com",
+      "phone": "(312) 555-7788",
+      "preferredContact": "Email"
+    },
+    "loan": {
+      "intent": "Accessing my equity",
+      "veteran": "No",
+      "purchaseState": "",
+      "willOccupy": "",
+      "purchasePrice": "",
+      "purchaseProcess": "",
+      "workingWithRealtor": "",
+      "currentAddress": {
+        "street": "1200 Lake Shore Dr",
+        "city": "Chicago",
+        "state": "IL",
+        "zip": "60611"
+      },
+      "primaryResidence": "No",
+      "estimatedLoanAmount": "Over $750,000",
+      "employmentStatus": "Retired",
+      "householdIncome": "Over $250,000",
+      "creditCategory": "Fair (620 to 679)"
+    },
+    "consents": {
+      "creditAuthorization": {
+        "granted": true,
+        "timestamp": "2026-06-18T16:50:24.190Z",
+        "text": "By checking this box, I provide express written authorization for Oxford Home Lending to obtain and use consumer report information, including information related to my mortgage shopping behavior, for the purpose of providing prescreened offers of credit. I understand I may revoke this authorization at any time by contacting: info@oxfordhomelending.com or 655-689-3571."
+      },
+      "tcpa": {
+        "granted": true,
+        "timestamp": "2026-06-18T16:50:24.190Z",
+        "text": "I authorize Oxford Home Lending to contact me at the phone number provided using automated technology, including autodialed calls, prerecorded or artificial voice messages, and text messages regarding mortgage loan products and prescreened offers. By checking this box, I also consent to receive calls and messages from Oxford Home Lending, its affiliates, and its service providers at the telephone number I provide, including through automated calling technologies, prerecorded or artificial voice messages, and AI-assisted voice communications. My consent is voluntary and not a condition of loan approval. I may revoke consent at any time by contacting: info@oxfordhomelending.com or 655-689-3571."
+      }
+    },
+    "meta": {
+      "formStartedAt": "2026-06-18T16:49:14.190Z",
+      "elapsedMs": 70000,
+      "honeypotTriggered": false,
+      "suspectedBot": false
+    },
+    "tracking": {
+      "gclid": "TESTgclid123",
+      "gbraid": "",
+      "wbraid": "",
+      "fbclid": "FBxyz789",
+      "msclkid": "",
+      "ttclid": "",
+      "liFatId": "",
+      "epik": "",
+      "irclickid": "",
+      "utmSource": "google",
+      "utmMedium": "cpc",
+      "utmCampaign": "spring_refi",
+      "utmTerm": "mortgage rates",
+      "utmContent": "hero_ad",
+      "utmId": "",
+      "gaClientId": "1234567890.1681500000",
+      "hubspotutk": "a1b2c3d4e5f6a7b8c9d0e1f2",
+      "leadUuid": "e95103b4-eadd-4b3b-8c49-8c3ee4208f38",
+      "referrer": "https://www.google.com/",
+      "landingPage": "https://apply.oxfordhomelending.com/get-started?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi&utm_content=hero_ad&utm_term=mortgage+rates&fbclid=FBxyz789",
+      "submitPage": "https://apply.oxfordhomelending.com/get-started?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi&utm_content=hero_ad&utm_term=mortgage+rates&fbclid=FBxyz789",
+      "userAgent": "Mozilla/5.0 (Macintosh; TestHarness) Node",
+      "language": "en-US",
+      "timezone": "UTC",
+      "screen": "1920x1080",
+      "viewport": "1440x900"
+    }
+  }
+}
