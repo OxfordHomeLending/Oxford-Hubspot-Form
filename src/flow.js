@@ -176,7 +176,7 @@ export const STEPS = [
   {
     id: 15, key: 'contact', type: 'reach', eyebrow: 'Almost done',
     title: (a) => `Perfect. Where should we send your options, ${fn(a) || 'and how can we reach you'}?`,
-    sub: 'A loan officer will reach out with options tailored to you.',
+    sub: 'A licensed mortgage advisor will reach out with options tailored to you.',
     note: 'We only use this to share your options. No spam, ever.',
     next: 16
   },

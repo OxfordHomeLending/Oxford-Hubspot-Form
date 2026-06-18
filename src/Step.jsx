@@ -12,7 +12,7 @@ export default function Step({ step, answers, errors, dir, handlers }) {
   const sub = step.sub ? resolve(step.sub, answers) : null
 
   return (
-    <div className={'ohl-step ohl-' + (dir || 'fwd')} key={step.id}>
+    <div className={'ohl-step ohl-anim-' + (dir || 'fwd')} key={step.id}>
       {step.eyebrow && <div className="ohl-eyebrow">{step.eyebrow}</div>}
       <h2 className="ohl-title">{title}</h2>
       {sub && <p className="ohl-sub">{sub}</p>}

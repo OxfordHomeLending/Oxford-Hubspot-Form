@@ -150,8 +150,8 @@ body {
 .ohl-flow { display: flex; flex-direction: column; flex: 1; }
 
 .ohl-step { animation: ohlIn .4s cubic-bezier(.2, .65, .25, 1); }
-.ohl-step.ohl-fwd { animation: ohlFwd .42s cubic-bezier(.2, .65, .25, 1); }
-.ohl-step.ohl-back { animation: ohlBack .42s cubic-bezier(.2, .65, .25, 1); }
+.ohl-step.ohl-anim-fwd { animation: ohlFwd .42s cubic-bezier(.2, .65, .25, 1); }
+.ohl-step.ohl-anim-back { animation: ohlBack .42s cubic-bezier(.2, .65, .25, 1); }
 @keyframes ohlIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @keyframes ohlFwd { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
 @keyframes ohlBack { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
