@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { stepById, estimateTotal } from './flow'
 import { buildPayload, captureAttribution, evaluateSubmission } from './tracking'
+import { loadProgress, saveProgress, clearProgress } from './progress'
 import Step from './Step.jsx'
 import logoReverse from './assets/logo-reverse.svg'
 import logoFull from './assets/logo.svg'
@@ -41,9 +42,11 @@ function panelLine(stepId, answers) {
 }
 
 export default function MortgageForm() {
-  const [answers, setAnswers] = useState({})
-  const [currentId, setCurrentId] = useState(1)
-  const [history, setHistory] = useState([])
+  // Restore any saved (non-sensitive, non-consent) progress from a prior visit.
+  const [restored] = useState(() => loadProgress())
+  const [answers, setAnswers] = useState(restored.answers)
+  const [currentId, setCurrentId] = useState(restored.currentId)
+  const [history, setHistory] = useState(restored.history)
   const [errors, setErrors] = useState({})
   const [status, setStatus] = useState('filling') // filling | submitting | done
   const [formError, setFormError] = useState('')
@@ -52,15 +55,40 @@ export default function MortgageForm() {
   const busy = useRef(false)
   const honeypotRef = useRef(null)
   const startedAt = useRef(Date.now())
+  const cardRef = useRef(null)
 
   useEffect(() => { captureAttribution() }, [])
   useEffect(() => { busy.current = false }, [currentId])
 
-  // Tell a parent page (Webflow embed) how tall we are, so the iframe can resize.
+  // Save progress as the visitor advances (income, credit, and consents are
+  // excluded inside saveProgress). Stops saving once the form is submitted.
   useEffect(() => {
-    const h = Math.ceil(document.documentElement.scrollHeight)
-    try { window.parent && window.parent.postMessage({ type: 'ohl-form-height', height: h }, '*') } catch (e) { /* ignore */ }
-  }, [currentId, status])
+    if (status === 'done') return
+    saveProgress(answers)
+  }, [answers, status])
+
+  // Keep a parent page (Webflow embed) sized to our content. A ResizeObserver
+  // catches every height change: step transitions, validation messages, the
+  // tall consent step, font loads, and orientation flips.
+  useEffect(() => {
+    const post = () => {
+      const h = Math.ceil(document.documentElement.scrollHeight)
+      try { window.parent && window.parent.postMessage({ type: 'ohl-form-height', height: h }, '*') } catch (e) { /* ignore */ }
+    }
+    post()
+    let ro
+    if (typeof ResizeObserver !== 'undefined' && cardRef.current) {
+      ro = new ResizeObserver(post)
+      ro.observe(cardRef.current)
+    }
+    window.addEventListener('resize', post)
+    window.addEventListener('orientationchange', post)
+    return () => {
+      if (ro) ro.disconnect()
+      window.removeEventListener('resize', post)
+      window.removeEventListener('orientationchange', post)
+    }
+  }, [])
 
   const step = stepById(currentId)
   const nextId = step.branch ? step.branch(answers) : step.next
@@ -162,7 +190,7 @@ export default function MortgageForm() {
     if (DEBUG) console.log('[Oxford form] payload ->', payload)
 
     // A filled honeypot means a bot. Show success and silently drop (no webhook hit).
-    if (verdict.honeypotTriggered) { setStatus('done'); return }
+    if (verdict.honeypotTriggered) { clearProgress(); setStatus('done'); return }
 
     if (!WEBHOOK_URL) { window.setTimeout(() => setStatus('done'), 700); return }
     try {
@@ -170,6 +198,7 @@ export default function MortgageForm() {
       if (FORM_TOKEN) headers['X-Oxford-Form-Token'] = FORM_TOKEN
       const res = await fetch(WEBHOOK_URL, { method: 'POST', headers, body: JSON.stringify(payload) })
       if (!res.ok) throw new Error('HTTP ' + res.status)
+      clearProgress()
       if (REDIRECT_URL) { window.location.href = REDIRECT_URL; return }
       setStatus('done')
     } catch (err) {
@@ -186,7 +215,7 @@ export default function MortgageForm() {
   const pct = isFinal ? 100 : Math.min(100, Math.round((position / total) * 100))
 
   return (
-    <div className="ohl-card">
+    <div className="ohl-card" ref={cardRef}>
       <aside className="ohl-aside">
         <img className="ohl-eagle-mark" src={eagleMark} alt="" aria-hidden="true" />
         <div className="ohl-aside-top">
