@@ -13,7 +13,7 @@
 // directly to your webhook over TLS.
 // ----------------------------------------------------------------------------
 
-export const FORM_VERSION = '2.0.0'
+export const FORM_VERSION = '3.0.0-3stage'
 
 const ATTR_COOKIE = 'ohl_attr'
 const ATTR_DAYS = 90
@@ -110,39 +110,62 @@ export function evaluateSubmission({ startedAt, now = Date.now(), honeypotValue 
 // Shapes the final JSON. Sections map cleanly onto your n8n branches:
 // contact + loan -> Velocify LeadAdd, consents -> TCPA / credit fields,
 // tracking -> Velocify hidden fields + HubSpot properties, meta -> spam routing.
+// Capitalize names for clean CRM data.
+function capName(s) {
+  return (s || '').toLowerCase().replace(/\b([a-z])/g, (m, ch) => ch.toUpperCase())
+}
+
+const STAGE_LABEL = { 1: 'Exploring (Stage 1)', 2: 'Pre-qualified (Stage 2)', 3: 'Full application (Stage 3)' }
+
+// Shapes the final JSON. leadStage marks how far the person progressed, so n8n
+// can grade quality (1 = low / searching, 2 = mid / pre-qual, 3 = best / full
+// application). Sections map onto your downstream branches.
 export function buildPayload(answers, consentMeta, meta) {
   const c = answers.contact || {}
   const cm = consentMeta || {}
   const m = meta || {}
+  const stage = m.leadStage || 1
   return {
-    leadUuid: store.leadUuid,                 // idempotency key for dedupe in n8n
+    leadUuid: store.leadUuid,                 // idempotency key for dedupe / enrichment in n8n
     submittedAt: new Date().toISOString(),
     source: 'oxford-web-form',
     formVersion: FORM_VERSION,
+    leadStage: stage,
+    leadStageLabel: STAGE_LABEL[stage] || STAGE_LABEL[1],
     contact: {
-      firstName: c.firstName || '',
-      lastName: c.lastName || '',
-      email: c.email || '',
-      phone: c.phone || '',
-      preferredContact: answers.preferred_contact || ''
+      firstName: capName(c.firstName),
+      lastName: capName(c.lastName),
+      email: (c.email || '').trim(),
+      phone: c.phone || ''
     },
     loan: {
-      intent: answers.intent || '',
-      veteran: answers.veteran || '',
-      // purchase path
-      purchaseState: answers.purchase_state || '',
-      willOccupy: answers.will_occupy || '',
-      purchasePrice: answers.purchase_price || '',
-      purchaseProcess: answers.purchase_process || '',
-      workingWithRealtor: answers.realtor || '',
-      // current property path
-      currentAddress: answers.current_address || null,
-      primaryResidence: answers.primary_residence || '',
+      goal: answers.loan_goal || '',
+      propertyState: answers.property_state || '',
+      estimatedHomeValue: answers.home_value || '',
       estimatedLoanAmount: answers.loan_amount || '',
-      // shared
-      employmentStatus: answers.employment || '',
-      householdIncome: answers.income || '',
-      creditCategory: answers.credit || ''
+      creditCategory: answers.credit || '',
+      // stage 2
+      propertyAddress: answers.property_address || null,
+      propertyType: answers.property_type || '',
+      occupancy: answers.occupancy || '',
+      ownsMultipleProperties: answers.own_multiple || '',
+      secondLiens: answers.second_liens || '',
+      currentInterestRate: answers.current_rate || '',
+      propertyAcquired: answers.when_acquired || '',
+      incomeSource: answers.income_source || '',
+      monthlyIncome: answers.monthly_income || '',
+      // stage 3
+      timeAtResidence: answers.time_at_residence || '',
+      incomeSourceDuration: answers.income_duration || '',
+      liquidAssets: answers.liquid_assets || '',
+      veteran: answers.veteran || ''
+    },
+    borrower: {
+      maritalStatus: answers.marital_status || '',
+      coBorrower: answers.co_borrower || '',
+      birthPlace: answers.birth_place || '',
+      dateOfBirth: answers.date_of_birth || '',
+      ssn: answers.ssn || ''
     },
     consents: {
       creditAuthorization: {
@@ -157,6 +180,7 @@ export function buildPayload(answers, consentMeta, meta) {
       }
     },
     meta: {
+      leadStage: stage,
       formStartedAt: m.formStartedAt || null,
       elapsedMs: typeof m.elapsedMs === 'number' ? m.elapsedMs : null,
       honeypotTriggered: !!m.honeypotTriggered,

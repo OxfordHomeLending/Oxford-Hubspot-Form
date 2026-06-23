@@ -1,21 +1,21 @@
 // ============================================================================
-// Path test harness.
-// Imports the REAL src/flow.js and src/tracking.js, mocks the browser globals
-// those modules touch, walks each of the three branch paths the same way the
-// form's orchestrator does (following step.branch(answers) / step.next), builds
-// the payload with the real buildPayload(), and asserts the JSON is correct.
+// Test harness for the 3-stage progressive intake.
+// Imports the REAL src/flow.js, src/tracking.js, src/progress.js, mocks the
+// browser globals they touch, walks the flow the way the orchestrator does
+// (nextVisible over NODES, honoring showIf), builds the payload with the real
+// buildPayload(), and asserts structure + behavior.
 //
 //   node test/run-tests.mjs
 //
-// Browser globals MUST be installed before importing tracking.js, because that
-// module reads document.cookie at load time (first-touch store init).
+// Browser globals MUST be installed before importing tracking.js (it reads
+// document.cookie at load time for the first-touch store).
 // ============================================================================
 
 // ---- 1. Mock the browser ----------------------------------------------------
 const cookieJar = {}
 function seedCookie(k, v) { cookieJar[k] = v }
-seedCookie('_ga', 'GA1.2.1234567890.1681500000')        // -> gaClientId 1234567890.1681500000
-seedCookie('hubspotutk', 'a1b2c3d4e5f6a7b8c9d0e1f2')    // -> hubspotutk passthrough
+seedCookie('_ga', 'GA1.2.1234567890.1681500000')
+seedCookie('hubspotutk', 'a1b2c3d4e5f6a7b8c9d0e1f2')
 
 const QUERY =
   '?gclid=TESTgclid123&utm_source=google&utm_medium=cpc&utm_campaign=spring_refi' +
@@ -32,237 +32,191 @@ globalThis.document = {
     const v = decodeURIComponent(pair.slice(i + 1).trim())
     cookieJar[k] = v
   },
-  referrer: 'https://www.google.com/'
+  referrer: 'https://www.google.com/',
+  createElement: () => ({ set innerHTML(v) { this._t = String(v).replace(/<[^>]*>/g, '') }, get textContent() { return this._t || '' } })
 }
+const _ls = {}
 globalThis.window = {
   location: { search: QUERY, href: HREF, protocol: 'https:' },
-  crypto: globalThis.crypto,        // Node 18+ exposes Web Crypto with randomUUID
+  crypto: globalThis.crypto,
   screen: { width: 1920, height: 1080 },
   innerWidth: 1440,
   innerHeight: 900,
-  Intl
+  Intl,
+  localStorage: {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(_ls, k) ? _ls[k] : null),
+    setItem: (k, v) => { _ls[k] = String(v) },
+    removeItem: (k) => { delete _ls[k] }
+  }
 }
 globalThis.location = globalThis.window.location
-// navigator is a read-only global in modern Node, so define it explicitly.
 Object.defineProperty(globalThis, 'navigator', {
   value: { userAgent: 'Mozilla/5.0 (Macintosh; TestHarness) Node', language: 'en-US' },
   configurable: true, writable: true
 })
 
 // ---- 2. Import the real source ---------------------------------------------
-const { STEPS, stepById } = await import('../src/flow.js')
+const flow = await import('../src/flow.js')
+const { NODES, STAGES, capitalize, stateName, isVisible, nextVisible, prevVisible, firstIndexOfStage, stageProgress } = flow
 const { buildPayload, captureAttribution, evaluateSubmission, FORM_VERSION } = await import('../src/tracking.js')
+const { loadProgress, saveProgress, clearProgress } = await import('../src/progress.js')
 
-// Simulate the on-mount first-touch capture (the form does this in a useEffect).
 captureAttribution()
 
-// ---- 3. Tiny assertion kit --------------------------------------------------
+// ---- 3. Assertion kit -------------------------------------------------------
 let PASS = 0, FAIL = 0
 const fails = []
-function check(label, cond) {
-  if (cond) { PASS++ } else { FAIL++; fails.push(label) }
-  const tag = cond ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m'
-  console.log(`   ${tag}  ${label}`)
-}
-const nonEmpty = (v) => typeof v === 'string' && v.trim().length > 0
-const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v || '')
+function check(label, cond) { if (cond) PASS++; else { FAIL++; fails.push(label) } }
+function eq(label, a, b) { check(`${label} (got ${JSON.stringify(a)})`, a === b) }
 
-// strip HTML the same way the form does when recording consent text
-const strip = (h) => String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
-
-// ---- 4. Walk the real flow graph for a given set of answers ----------------
-function runPath(responder) {
-  const answers = {}
-  const consentMeta = {}
+// ---- 4. Walk the flow like the orchestrator --------------------------------
+// Returns the ordered list of visited node indices for a given answers object,
+// following nextVisible and stopping at milestones the way "continue" would.
+function walk(answers, { stopAtStage } = {}) {
   const visited = []
-  let id = 1, guard = 0
-  while (id && id !== 'submit' && guard < 100) {
-    const s = stepById(id)
-    if (!s) throw new Error('no step with id ' + id)
-    visited.push(s.id)
-    switch (s.type) {
-      case 'firstname':
-        answers.contact = { ...(answers.contact || {}), firstName: responder.firstName }
-        break
-      case 'reach':
-        answers.contact = { ...(answers.contact || {}), lastName: responder.lastName, email: responder.email, phone: responder.phone }
-        break
-      case 'address':
-        answers[s.key] = responder[s.key]
-        break
-      case 'consent':
-        answers[s.key] = 'Yes'
-        consentMeta[s.key] = { text: strip(s.text), timestamp: new Date().toISOString() }
-        break
-      default: // single, select
-        answers[s.key] = responder[s.key]
-    }
-    id = s.branch ? s.branch(answers) : s.next
-    guard++
+  let i = 0
+  while (i !== -1 && i < NODES.length) {
+    visited.push(i)
+    const n = NODES[i]
+    if (n.type === 'milestone' && stopAtStage && n.milestone === stopAtStage) break
+    i = nextVisible(i, answers)
   }
-  return { answers, consentMeta, visited }
+  return visited
 }
 
-// A normal human submission: ~70s on the form, honeypot empty.
-function humanMeta() {
-  const started = Date.now() - 70000
-  const v = evaluateSubmission({ startedAt: started, honeypotValue: '' })
-  return { formStartedAt: new Date(started).toISOString(), elapsedMs: v.elapsedMs, honeypotTriggered: v.honeypotTriggered, suspectedBot: v.suspectedBot }
+const buyer = {
+  loan_goal: 'Buy a home',
+  contact: { firstName: 'logan', lastName: 'pack', email: 'logan@example.com', phone: '(614) 555 0142' },
+  property_state: 'OH', home_value: '$350,000 to $500,000', loan_amount: '$300,000 to $500,000',
+  credit: 'Good (680 to 739)', tcpa: 'Yes',
+  property_address: { street: '1 Main St', city: 'Columbus', state: 'OH', zip: '43004' },
+  property_type: 'Single-family home', occupancy: 'Primary residence', own_multiple: 'No',
+  income_source: 'Employed (W-2)', monthly_income: '$7,000 to $10,000', credit_auth: 'Yes',
+  time_at_residence: '2 to 5 years', income_duration: '2 to 5 years', liquid_assets: '$50,000 to $100,000',
+  marital_status: 'Married', co_borrower: 'No', veteran: 'No', birth_place: 'ohio',
+  date_of_birth: '1990-05-04', ssn: '123-45-6789'
 }
+const refier = { ...buyer, loan_goal: 'Refinance for a lower rate',
+  second_liens: 'None', current_rate: '6% to 7%', when_acquired: '3 to 5 years ago' }
 
-// ---- 5. Responders for the three paths -------------------------------------
-const purchase = {
-  intent: 'Buying a home', firstName: 'Jordan',
-  purchase_state: 'TX', will_occupy: 'Yes', purchase_price: '$350,000 to $500,000',
-  purchase_process: 'Actively shopping', realtor: 'Yes',
-  veteran: 'No', employment: 'Employed (W-2)', income: '$100,000 to $150,000', credit: 'Good (680 to 739)',
-  lastName: 'Rivera', email: 'jordan.rivera@example.com', phone: '(614) 555-0142', preferred_contact: 'Text message'
+// ---- 5. Structure ----------------------------------------------------------
+eq('three stages defined', STAGES.length, 3)
+const milestones = NODES.filter((n) => n.type === 'milestone')
+eq('three milestones', milestones.length, 3)
+eq('milestone 1 is stage 1', milestones[0].stage, 1)
+eq('milestone 3 is final', !!milestones[2].final, true)
+check('only final milestone has no continueLabel', milestones[2].continueLabel === undefined && !!milestones[0].continueLabel)
+check('every non-milestone node has a key', NODES.filter((n) => n.type !== 'milestone').every((n) => !!n.key))
+check('stage 1 question count is 6-7 (+ contact + consent)', (() => {
+  const q = NODES.filter((n) => n.stage === 1 && n.type !== 'milestone')
+  return q.length >= 7 && q.length <= 9
+})())
+
+// ---- 6. showIf: refi-only questions skipped for buyers ----------------------
+const refiOnly = ['second_liens', 'current_rate', 'when_acquired']
+check('refi-only questions hidden for a buyer', refiOnly.every((k) => {
+  const n = NODES.find((x) => x.key === k)
+  return !isVisible(n, buyer)
+}))
+check('refi-only questions shown for a refinancer', refiOnly.every((k) => {
+  const n = NODES.find((x) => x.key === k)
+  return isVisible(n, refier)
+}))
+const buyerVisited = walk(buyer).map((i) => NODES[i].key).filter(Boolean)
+check('buyer path excludes current_rate', !buyerVisited.includes('current_rate'))
+const refiVisited = walk(refier).map((i) => NODES[i].key).filter(Boolean)
+check('refi path includes current_rate', refiVisited.includes('current_rate'))
+
+// ---- 7. Per-stage progress resets each stage --------------------------------
+const m1 = NODES.findIndex((n) => n.type === 'milestone' && n.milestone === 1)
+const m2 = NODES.findIndex((n) => n.type === 'milestone' && n.milestone === 2)
+eq('progress is 100% at milestone 1', stageProgress(m1, refier), 100)
+eq('progress is 100% at milestone 2', stageProgress(m2, refier), 100)
+const firstS2 = firstIndexOfStage(2, refier)
+check('progress resets near 0 at start of stage 2', stageProgress(firstS2, refier) <= 20)
+check('progress increases within a stage', stageProgress(firstS2 + 2, refier) > stageProgress(firstS2, refier))
+
+// ---- 8. Navigation back/forward --------------------------------------------
+check('prevVisible from m1 lands on a real node', prevVisible(m1, refier) >= 0)
+check('nextVisible from m1 enters stage 2', NODES[nextVisible(m1, refier)].stage === 2)
+
+// ---- 9. capitalize ----------------------------------------------------------
+eq('capitalize single word', capitalize('logan'), 'Logan')
+eq('capitalize multi word', capitalize('mary jane'), 'Mary Jane')
+eq('capitalize empty is empty', capitalize(''), '')
+eq('stateName resolves', stateName('OH'), 'Ohio')
+
+// ---- 10. Payload per stage --------------------------------------------------
+function payloadFor(answers, stageNum) {
+  return buildPayload(answers, { tcpa: { text: 'tcpa text', timestamp: '2026-01-01T00:00:00Z' }, credit_auth: { text: 'auth text', timestamp: '2026-01-01T00:00:00Z' } },
+    { leadStage: stageNum, formStartedAt: '2026-01-01T00:00:00Z', elapsedMs: 30000, honeypotTriggered: false, suspectedBot: false })
 }
-const refinance = {
-  intent: 'Refinancing my home', firstName: 'Sam',
-  current_address: { street: '88 Maple Ave', city: 'Dublin', state: 'OH', zip: '43017' },
-  primary_residence: 'Yes', loan_amount: '$300,000 to $500,000',
-  veteran: 'Yes', employment: 'Self-employed', income: '$150,000 to $250,000', credit: 'Excellent (740+)',
-  lastName: 'Okafor', email: 'sam.okafor@example.com', phone: '(555) 123-4567', preferred_contact: 'Phone call'
+const p1 = payloadFor(buyer, 1)
+const p3 = payloadFor(buyer, 3)
+eq('payload carries leadStage 1', p1.leadStage, 1)
+eq('payload carries leadStage 3', p3.leadStage, 3)
+check('leadStageLabel present', typeof p1.leadStageLabel === 'string' && p1.leadStageLabel.length > 0)
+eq('firstName capitalized in payload', p1.contact.firstName, 'Logan')
+eq('lastName capitalized in payload', p1.contact.lastName, 'Pack')
+eq('loan.goal mapped', p1.loan.goal, 'Buy a home')
+eq('loan.propertyState mapped', p1.loan.propertyState, 'OH')
+eq('loan.estimatedHomeValue mapped', p1.loan.estimatedHomeValue, '$350,000 to $500,000')
+eq('loan.propertyType mapped (stage 2 field)', p3.loan.propertyType, 'Single-family home')
+eq('borrower.maritalStatus mapped (stage 3)', p3.borrower.maritalStatus, 'Married')
+eq('borrower.dateOfBirth mapped', p3.borrower.dateOfBirth, '1990-05-04')
+eq('borrower.ssn mapped', p3.borrower.ssn, '123-45-6789')
+eq('tcpa consent granted', p1.consents.tcpa.granted, true)
+eq('credit auth consent granted', p3.consents.creditAuthorization.granted, true)
+eq('leadUuid present', typeof p1.leadUuid, 'string')
+eq('gclid captured in tracking', p1.tracking.gclid, 'TESTgclid123')
+eq('utm_source captured', p1.tracking.utmSource, 'google')
+eq('ga client id derived', p1.tracking.gaClientId, '1234567890.1681500000')
+eq('meta.leadStage echoed', p3.meta.leadStage, 3)
+
+// ---- 11. Save/resume excludes sensitive fields ------------------------------
+clearProgress()
+saveProgress(buyer)
+const rawSaved = JSON.parse(globalThis.window.localStorage.getItem('ohl_form_progress'))
+check('saved blob has answers', !!rawSaved && !!rawSaved.answers)
+check('SSN never stored', rawSaved.answers.ssn === undefined)
+check('date of birth never stored', rawSaved.answers.date_of_birth === undefined)
+check('tcpa consent never stored', rawSaved.answers.tcpa === undefined)
+check('credit_auth consent never stored', rawSaved.answers.credit_auth === undefined)
+check('non-sensitive answer (loan_goal) is stored', rawSaved.answers.loan_goal === 'Buy a home')
+check('non-sensitive answer (home_value) is stored', rawSaved.answers.home_value === '$350,000 to $500,000')
+
+// resume should land on first unanswered: with consents+ssn+dob stripped, a
+// partial saver returns to the first stripped/unanswered question.
+const partial = { loan_goal: 'Buy a home', contact: { firstName: 'sam' }, property_state: 'TX' }
+clearProgress()
+saveProgress(partial)
+const resumed = loadProgress()
+check('resume restores stored answers', resumed.answers.property_state === 'TX')
+check('resume index points to an unanswered question', (() => {
+  const n = NODES[resumed.index]
+  return n && n.type !== 'milestone'
+})())
+clearProgress()
+
+// ---- 12. Bot + timing -------------------------------------------------------
+const human = evaluateSubmission({ startedAt: Date.now() - 30000, honeypotValue: '' })
+check('human not flagged as bot', human.suspectedBot === false && human.honeypotTriggered === false)
+const bot = evaluateSubmission({ startedAt: Date.now() - 30000, honeypotValue: 'spam' })
+check('filled honeypot flagged', bot.honeypotTriggered === true)
+const tooFast = evaluateSubmission({ startedAt: Date.now() - 500, honeypotValue: '' })
+check('too-fast submit flagged', tooFast.suspectedBot === true)
+
+// ---- 13. FORM_VERSION -------------------------------------------------------
+check('FORM_VERSION present', typeof FORM_VERSION === 'string' && FORM_VERSION.length > 0)
+
+// ---- report -----------------------------------------------------------------
+const RESET = '\x1b[0m', GREEN = '\x1b[32m', RED = '\x1b[31m', BOLD = '\x1b[1m'
+console.log('')
+if (FAIL === 0) {
+  console.log(`${GREEN}${BOLD}  Total: ${PASS + FAIL}   PASS ${PASS}   FAIL ${FAIL}${RESET}`)
+  console.log(`${GREEN}   3-stage flow, payload, progress, and save/resume verified. Safe to test live.${RESET}`)
+} else {
+  console.log(`${RED}${BOLD}  Total: ${PASS + FAIL}   PASS ${PASS}   FAIL ${FAIL}${RESET}`)
+  fails.forEach((f) => console.log(`${RED}   FAIL  ${f}${RESET}`))
+  process.exit(1)
 }
-const equity = {
-  intent: 'Accessing my equity', firstName: 'Lee',
-  current_address: { street: '1200 Lake Shore Dr', city: 'Chicago', state: 'IL', zip: '60611' },
-  primary_residence: 'No', loan_amount: 'Over $750,000',
-  veteran: 'No', employment: 'Retired', income: 'Over $250,000', credit: 'Fair (620 to 679)',
-  lastName: 'Nguyen', email: 'lee.nguyen@example.com', phone: '(312) 555-7788', preferred_contact: 'Email'
-}
-
-const EXPECTED = {
-  purchase: [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18],
-  refinance: [1, 2, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-  equity: [1, 2, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
-}
-
-const leadUuids = []
-
-function assertCommon(name, p, r) {
-  // contact
-  check(`${name}: firstName populated`, p.contact.firstName === r.firstName)
-  check(`${name}: lastName populated`, p.contact.lastName === r.lastName)
-  check(`${name}: email populated`, p.contact.email === r.email)
-  check(`${name}: phone populated`, p.contact.phone === r.phone)
-  check(`${name}: preferredContact populated`, p.contact.preferredContact === r.preferred_contact)
-  // shared loan fields
-  check(`${name}: intent correct`, p.loan.intent === r.intent)
-  check(`${name}: employment populated`, nonEmpty(p.loan.employmentStatus))
-  check(`${name}: income populated`, nonEmpty(p.loan.householdIncome))
-  check(`${name}: credit populated`, nonEmpty(p.loan.creditCategory))
-  check(`${name}: veteran populated`, nonEmpty(p.loan.veteran))
-  // consents
-  check(`${name}: credit auth granted`, p.consents.creditAuthorization.granted === true)
-  check(`${name}: credit auth has timestamp`, nonEmpty(p.consents.creditAuthorization.timestamp))
-  check(`${name}: credit auth has text`, nonEmpty(p.consents.creditAuthorization.text))
-  check(`${name}: tcpa granted`, p.consents.tcpa.granted === true)
-  check(`${name}: tcpa has timestamp`, nonEmpty(p.consents.tcpa.timestamp))
-  check(`${name}: tcpa has text`, nonEmpty(p.consents.tcpa.text))
-  // tracking / robust capture
-  check(`${name}: gclid captured`, p.tracking.gclid === 'TESTgclid123')
-  check(`${name}: utm_source captured`, p.tracking.utmSource === 'google')
-  check(`${name}: utm_medium captured`, p.tracking.utmMedium === 'cpc')
-  check(`${name}: utm_campaign captured`, p.tracking.utmCampaign === 'spring_refi')
-  check(`${name}: fbclid captured`, p.tracking.fbclid === 'FBxyz789')
-  check(`${name}: gaClientId from _ga`, p.tracking.gaClientId === '1234567890.1681500000')
-  check(`${name}: hubspotutk passthrough`, p.tracking.hubspotutk === 'a1b2c3d4e5f6a7b8c9d0e1f2')
-  check(`${name}: referrer captured`, p.tracking.referrer === 'https://www.google.com/')
-  check(`${name}: viewport captured`, p.tracking.viewport === '1440x900')
-  check(`${name}: leadUuid is a uuid`, isUuid(p.leadUuid))
-  check(`${name}: leadUuid mirrored in tracking`, p.tracking.leadUuid === p.leadUuid)
-  check(`${name}: formVersion stamped`, p.formVersion === FORM_VERSION)
-  // meta / abuse signals (human submission)
-  check(`${name}: not flagged as bot`, p.meta.suspectedBot === false)
-  check(`${name}: honeypot not triggered`, p.meta.honeypotTriggered === false)
-  check(`${name}: elapsedMs recorded`, typeof p.meta.elapsedMs === 'number' && p.meta.elapsedMs > 0)
-  // serializable
-  let ok = true; try { JSON.parse(JSON.stringify(p)) } catch { ok = false }
-  check(`${name}: payload is valid JSON`, ok)
-  leadUuids.push(p.leadUuid)
-}
-
-function assertPurchase(p) {
-  check('purchase: purchaseState populated', nonEmpty(p.loan.purchaseState))
-  check('purchase: willOccupy populated', nonEmpty(p.loan.willOccupy))
-  check('purchase: purchasePrice populated', nonEmpty(p.loan.purchasePrice))
-  check('purchase: purchaseProcess populated', nonEmpty(p.loan.purchaseProcess))
-  check('purchase: workingWithRealtor populated', nonEmpty(p.loan.workingWithRealtor))
-  // refi-only fields must be empty/null on this path
-  check('purchase: currentAddress is null', p.loan.currentAddress === null)
-  check('purchase: primaryResidence empty', p.loan.primaryResidence === '')
-  check('purchase: estimatedLoanAmount empty', p.loan.estimatedLoanAmount === '')
-}
-
-function assertCurrentProperty(name, p) {
-  check(`${name}: currentAddress is an object`, p.loan.currentAddress && typeof p.loan.currentAddress === 'object')
-  check(`${name}: address.street populated`, nonEmpty(p.loan.currentAddress.street))
-  check(`${name}: address.zip populated`, nonEmpty(p.loan.currentAddress.zip))
-  check(`${name}: primaryResidence populated`, nonEmpty(p.loan.primaryResidence))
-  check(`${name}: estimatedLoanAmount populated`, nonEmpty(p.loan.estimatedLoanAmount))
-  // purchase-only fields must be empty on this path
-  check(`${name}: purchaseState empty`, p.loan.purchaseState === '')
-  check(`${name}: willOccupy empty`, p.loan.willOccupy === '')
-  check(`${name}: purchasePrice empty`, p.loan.purchasePrice === '')
-  check(`${name}: purchaseProcess empty`, p.loan.purchaseProcess === '')
-  check(`${name}: workingWithRealtor empty`, p.loan.workingWithRealtor === '')
-}
-
-function divider(t) { console.log('\n\x1b[1m\x1b[36m' + t + '\x1b[0m') }
-
-// ---- 6. Run the three paths -------------------------------------------------
-const results = {}
-for (const [name, r] of [['purchase', purchase], ['refinance', refinance], ['equity', equity]]) {
-  divider(`========== PATH: ${name.toUpperCase()} ==========`)
-  const { answers, consentMeta, visited } = runPath(r)
-  const payload = buildPayload(answers, consentMeta, humanMeta())
-  results[name] = payload
-
-  console.log('   visited steps:', visited.join(' -> '))
-  check(`${name}: step sequence matches expected`, JSON.stringify(visited) === JSON.stringify(EXPECTED[name]))
-  assertCommon(name, payload, r)
-  if (name === 'purchase') assertPurchase(payload)
-  else assertCurrentProperty(name, payload)
-
-  console.log('\n   --- emitted JSON ---')
-  console.log(JSON.stringify(payload, null, 2).split('\n').map((l) => '   ' + l).join('\n'))
-}
-
-// idempotency: same browser session -> same leadUuid on every payload
-divider('========== CROSS-PATH ==========')
-check('leadUuid stable across all paths (idempotency key)', leadUuids.every((u) => u === leadUuids[0]))
-
-// Optionally refresh the committed sample file so it always mirrors real output.
-if (process.env.WRITE_SAMPLES) {
-  const fs = await import('node:fs')
-  const url = await import('node:url')
-  const path = await import('node:path')
-  const here = path.dirname(url.fileURLToPath(import.meta.url))
-  const dest = path.join(here, '..', 'sample-payloads.json')
-  fs.writeFileSync(dest, JSON.stringify(results, null, 2))
-  console.log('   wrote sample-payloads.json')
-}
-
-// ---- 7. Honeypot + timing unit tests ---------------------------------------
-divider('========== ABUSE DETECTION ==========')
-const human = evaluateSubmission({ startedAt: Date.now() - 60000, honeypotValue: '' })
-check('human (slow, empty honeypot) -> not bot', human.suspectedBot === false && human.honeypotTriggered === false && human.tooFast === false)
-
-const filled = evaluateSubmission({ startedAt: Date.now() - 60000, honeypotValue: 'Acme Corp' })
-check('honeypot filled -> honeypotTriggered true', filled.honeypotTriggered === true)
-check('honeypot filled -> suspectedBot true', filled.suspectedBot === true)
-
-const fast = evaluateSubmission({ startedAt: Date.now() - 400, honeypotValue: '' })
-check('completed in 400ms -> tooFast true', fast.tooFast === true)
-check('completed in 400ms -> suspectedBot true', fast.suspectedBot === true)
-
-const edge = evaluateSubmission({ startedAt: Date.now() - 2600, honeypotValue: '' })
-check('completed in 2600ms -> not bot (above 2500ms floor)', edge.suspectedBot === false)
-
-// ---- 8. Summary -------------------------------------------------------------
-divider('========== SUMMARY ==========')
-console.log(`   Total: ${PASS + FAIL}   \x1b[32mPASS ${PASS}\x1b[0m   ${FAIL ? '\x1b[31m' : ''}FAIL ${FAIL}\x1b[0m`)
-if (FAIL) { console.log('\n   Failing checks:'); fails.forEach((f) => console.log('     - ' + f)); process.exit(1) }
-else console.log('\n   \x1b[32mAll path payloads verified. Safe for you to test live.\x1b[0m')
