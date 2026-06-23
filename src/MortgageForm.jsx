@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import {
-  NODES, STAGES, capitalize, isVisible, nextVisible, prevVisible, stageProgress
+  NODES, STAGES, capitalize, nextVisible, stageProgress
 } from './flow'
 import { resolve } from './personalize'
 import { buildPayload, captureAttribution, evaluateSubmission } from './tracking'
@@ -428,7 +428,7 @@ function Success({ firstName, logo }) {
       <div className="ohl-done-mark">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#C42D2D" /><path d="m7 12.4 3.2 3.2L17 8.8" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </div>
-      <h2>You're all set{firstName ? ', ' + firstName : ''}.</h2>
+      <h2>You&apos;re all set{firstName ? ', ' + firstName : ''}.</h2>
       <p>Thanks for sharing the details. A licensed Oxford Home Lending mortgage advisor will review your information and reach out shortly.</p>
       <span className="ohl-next-steps">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" /></svg>
