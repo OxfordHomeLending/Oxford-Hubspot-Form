@@ -1,22 +1,38 @@
 {
   "name": "oxford-lead-form",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
-  "description": "Oxford Home Lending dynamic multi-step mortgage lead form. Posts a clean JSON payload to an n8n webhook.",
+  "description": "Oxford Home Lending three-stage progressive mortgage lead form. Posts a clean JSON payload to an n8n webhook at each stage boundary.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OxfordHomeLending/Oxford-Hubspot-Form.git"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "node test/run-tests.mjs",
-    "test:samples": "WRITE_SAMPLES=1 node test/run-tests.mjs"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.9.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^9.9.0",
+    "eslint-plugin-react": "^7.35.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.9.0",
+    "prettier": "^3.3.3",
     "vite": "^5.4.0"
   }
 }
